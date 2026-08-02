@@ -47,7 +47,7 @@
       }
 
       gallery.innerHTML = posts.map(post => {
-        const cover = post.slides?.[0]?.photo_url || '';
+        const cover = findCover(post.slides);
         return `
           <a class="frame-link" href="post.html?id=${post.id}">
             <div class="frame">
@@ -60,6 +60,15 @@
           </a>
         `;
       }).join('');
+    }
+
+    function findCover(slides) {
+      if (!slides?.length) return '';
+      const thumb = slides.find(b => b.type === 'thumbnail');
+      if (thumb) return thumb.url;
+      const photo = slides.find(b => b.type === 'photo');
+      if (photo) return photo.url;
+      return slides[0]?.photo_url || ''; // 구 포맷
     }
 
     loadPosts();

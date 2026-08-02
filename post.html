@@ -207,6 +207,7 @@
       });
 
       card.innerHTML = blocks.map(block => {
+        if (block.type === 'thumbnail') return ''; // 썸네일은 표시 안 함
         if (block.type === 'text') {
           return block.content
             ? `<p class="slide-text">${escapeHtml(block.content)}</p>`
