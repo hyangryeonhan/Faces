@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Faces</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <h1>Faces</h1>
+    <p>Till We Have Faces</p>
+  </header>
+
+  <main class="gallery" id="gallery">
+    <p class="empty-state">불러오는 중...</p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://kjdvxxuadtaiszdixfdw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqZHZ4eHVhZHRhaXN6ZGl4ZmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzkwMTgsImV4cCI6MjEwMTExNTAxOH0.qvfKLMazqQJfMDoK6BbaTbquZZJlHJXzQJEWnRgPffE';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function loadPosts() {
+      const gallery = document.getElementById('gallery');
+
+      const { data: posts, error } = await db
+        .from('posts')
+        .select('id, title, slides, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        gallery.innerHTML = '<p class="empty-state">기록을 불러오지 못했습니다.</p>';
+        console.error(error);
+        return;
+      }
+
+      if (!posts || posts.length === 0) {
+        gallery.innerHTML = '<p class="empty-state">아직 남긴 기록이 없습니다.</p>';
+        return;
+      }
+
+      gallery.innerHTML = posts.map(post => {
+        const cover = post.slides?.[0]?.photo_url || '';
+        return `
+          <a class="frame-link" href="post.html?id=${post.id}">
+            <div class="frame">
+              ${cover
+                ? `<img src="${cover}" alt="${post.title}" loading="lazy" />`
+                : '<div class="photo-placeholder"></div>'
+              }
+            </div>
+            <p class="frame-title">${post.title}</p>
+          </a>
+        `;
+      }).join('');
+    }
+
+    loadPosts();
+  </script>
+</body>
+</html>

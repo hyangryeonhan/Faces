@@ -1,0 +1,44 @@
+[
+  {
+    "id": "1",
+    "title": "오늘은 날이 좋아서",
+    "date": "2026-08-01",
+    "photo": "assets/photos/sample-1.svg",
+    "body": "별다른 일은 없었지만 하늘이 유독 맑았던 하루."
+  },
+  {
+    "id": "2",
+    "title": "동네 산책길에서",
+    "date": "2026-07-28",
+    "photo": "assets/photos/sample-2.svg",
+    "body": "특별할 것 없는 저녁 산책이었지만 오래 기억날 것 같다."
+  },
+  {
+    "id": "3",
+    "title": "요즘 드는 생각",
+    "date": "2026-07-20",
+    "photo": "assets/photos/sample-3.svg",
+    "body": "계속 미루기만 했던 것들을 하나씩 시작해보려 한다."
+  },
+  {
+    "id": "4",
+    "title": "비 오는 저녁",
+    "date": "2026-07-12",
+    "photo": "assets/photos/sample-4.svg",
+    "body": "창밖으로 빗소리를 들으며 잠깐 멈춰있었다."
+  },
+  {
+    "id": "5",
+    "title": "혼자 있는 시간",
+    "date": "2026-07-05",
+    "photo": "assets/photos/sample-5.svg",
+    "body": "아무것도 하지 않아도 괜찮은 시간이 필요했다."
+  },
+  {
+    "id": "6",
+    "title": "작은 위로",
+    "date": "2026-06-29",
+    "photo": "assets/photos/sample-6.svg",
+    "body": "사소한 것에서 위로를 받는 날들이 있다."
+  }
+]

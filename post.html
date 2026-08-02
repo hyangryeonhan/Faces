@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Faces</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="app">
+    <p class="empty-state" style="padding: 5rem 1.5rem;">불러오는 중...</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://kjdvxxuadtaiszdixfdw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqZHZ4eHVhZHRhaXN6ZGl4ZmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzkwMTgsImV4cCI6MjEwMTExNTAxOH0.qvfKLMazqQJfMDoK6BbaTbquZZJlHJXzQJEWnRgPffE';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let post = null;
+    let current = 0;
+
+    async function init() {
+      const app = document.getElementById('app');
+      const id = new URLSearchParams(location.search).get('id');
+
+      if (!id) {
+        app.innerHTML = '<p class="empty-state" style="padding:5rem 1.5rem;">글을 찾을 수 없습니다.</p>';
+        return;
+      }
+
+      const { data, error } = await db
+        .from('posts')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        app.innerHTML = '<p class="empty-state" style="padding:5rem 1.5rem;">글을 찾을 수 없습니다.</p>';
+        return;
+      }
+
+      post = data;
+      document.title = `${post.title} — Faces`;
+      render();
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      const slides = post.slides || [];
+      const slide = slides[current];
+      const total = slides.length;
+
+      if (!slide) {
+        app.innerHTML = '<p class="empty-state" style="padding:5rem 1.5rem;">슬라이드가 없습니다.</p>';
+        return;
+      }
+
+      const navHTML = total > 1 ? `
+        <div class="slide-nav">
+          <button class="nav-btn" onclick="navigate(-1)" ${current === 0 ? 'disabled' : ''}>←</button>
+          <span class="slide-counter">${current + 1} / ${total}</span>
+          <button class="nav-btn" onclick="navigate(1)" ${current === total - 1 ? 'disabled' : ''}>→</button>
+        </div>
+      ` : '';
+
+      app.innerHTML = `
+        <div class="post-page">
+          <div class="post-header">
+            <button class="back-btn" onclick="history.back()">←</button>
+            <h1 class="post-title">${post.title}</h1>
+          </div>
+          <div class="post-content">
+            <div class="post-left">
+              <div class="photo-container">
+                <img src="${slide.photo_url}" alt="${post.title}" />
+                ${slide.date ? `<span class="date-stamp">${slide.date}</span>` : ''}
+              </div>
+              ${navHTML}
+            </div>
+            <div class="post-right">
+              <p class="slide-body">${slide.body || ''}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function navigate(dir) {
+      const total = (post.slides || []).length;
+      const next = current + dir;
+      if (next < 0 || next >= total) return;
+      current = next;
+      render();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') navigate(-1);
+      if (e.key === 'ArrowRight') navigate(1);
+    });
+
+    init();
+  </script>
+</body>
+</html>

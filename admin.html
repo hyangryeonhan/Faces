@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Faces</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="app"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://kjdvxxuadtaiszdixfdw.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqZHZ4eHVhZHRhaXN6ZGl4ZmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzkwMTgsImV4cCI6MjEwMTExNTAxOH0.qvfKLMazqQJfMDoK6BbaTbquZZJlHJXzQJEWnRgPffE';
+    const ADMIN_PASSWORD = 'Faces_password';
+
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let slides = [];           // 현재 폼의 슬라이드
+    let editingId = null;      // 편집 중인 글 ID (null이면 새 글)
+    let isLoggedIn = sessionStorage.getItem('faces_admin') === '1';
+
+    function init() {
+      if (!isLoggedIn) renderLogin();
+      else renderAdmin();
+    }
+
+    /* ── 로그인 ── */
+    function renderLogin() {
+      document.getElementById('app').innerHTML = `
+        <div class="admin-login">
+          <div class="login-box">
+            <h2>Faces Admin</h2>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="pw" placeholder="비밀번호 입력" />
+            </div>
+            <button class="btn btn-primary" onclick="login()">로그인</button>
+            <p id="login-err" class="status-msg error" style="display:none;">비밀번호가 틀렸습니다.</p>
+          </div>
+        </div>
+      `;
+      document.getElementById('pw').addEventListener('keydown', e => {
+        if (e.key === 'Enter') login();
+      });
+    }
+
+    function login() {
+      const pw = document.getElementById('pw').value;
+      if (pw === ADMIN_PASSWORD) {
+        sessionStorage.setItem('faces_admin', '1');
+        isLoggedIn = true;
+        renderAdmin();
+      } else {
+        document.getElementById('login-err').style.display = 'block';
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem('faces_admin');
+      isLoggedIn = false;
+      renderLogin();
+    }
+
+    /* ── 어드민 메인 ── */
+    function renderAdmin(editPost = null) {
+      editingId = editPost ? editPost.id : null;
+      slides = [];
+
+      const isEdit = !!editPost;
+      const formTitle = isEdit ? '글 편집' : '새 글 작성';
+
+      document.getElementById('app').innerHTML = `
+        <div class="admin-page">
+          <h2>
+            ${formTitle}
+            <div style="display:flex;gap:0.5rem;">
+              ${isEdit ? `<button class="btn btn-sm" onclick="renderAdmin()">취소</button>` : ''}
+              <button class="btn btn-sm" onclick="logout()">로그아웃</button>
+            </div>
+          </h2>
+
+          <div class="form-group">
+            <label>글 제목</label>
+            <input type="text" id="post-title" placeholder="제목을 입력하세요"
+              value="${isEdit ? escapeHtml(editPost.title) : ''}" />
+          </div>
+
+          <div id="slides-container"></div>
+
+          <button class="btn" onclick="addSlide()" style="margin-bottom: 2rem;">+ 사진 추가</button>
+
+          <div>
+            <button class="btn btn-primary" onclick="publish()">
+              ${isEdit ? '저장하기' : '발행하기'}
+            </button>
+            <span id="publish-status" class="status-msg" style="margin-left: 1rem;"></span>
+          </div>
+
+          <div class="post-list" id="post-list"></div>
+        </div>
+      `;
+
+      if (isEdit) {
+        // 기존 슬라이드 불러오기
+        (editPost.slides || []).forEach(s => addSlide(s));
+      } else {
+        addSlide();
+      }
+
+      loadPostList();
+    }
+
+    /* ── 슬라이드 추가 ── */
+    function addSlide(existing = null) {
+      const idx = slides.length;
+      slides.push({
+        file: null,
+        existingUrl: existing?.photo_url || null,
+        date: existing?.date || '',
+        body: existing?.body || '',
+      });
+
+      const container = document.getElementById('slides-container');
+      const card = document.createElement('div');
+      card.className = 'slide-card';
+      card.id = `slide-${idx}`;
+
+      const previewHtml = existing?.photo_url
+        ? `<img id="preview-${idx}" class="slide-preview" src="${existing.photo_url}" style="margin-top:0.5rem;" />`
+        : `<img id="preview-${idx}" class="slide-preview" style="display:none; margin-top:0.5rem;" />`;
+
+      card.innerHTML = `
+        <div class="slide-card-header">
+          <span>사진 ${idx + 1}</span>
+          ${idx > 0 ? `<button class="btn btn-danger" onclick="removeSlide(${idx})">삭제</button>` : ''}
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>사진 파일 ${existing ? '(새 파일 선택 시 교체)' : ''}</label>
+          <input type="file" accept="image/*" onchange="onFileChange(${idx}, this)" />
+          ${previewHtml}
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>날짜 (예: 16 07 10)</label>
+          <input type="text" placeholder="YY MM DD" value="${escapeHtml(existing?.date || '')}"
+            oninput="slides[${idx}].date = this.value" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>본문 텍스트</label>
+          <textarea placeholder="이 사진에 대한 글을 쓰세요..."
+            oninput="slides[${idx}].body = this.value">${escapeHtml(existing?.body || '')}</textarea>
+        </div>
+      `;
+      container.appendChild(card);
+
+      // 기존 값 slides 배열에 반영
+      if (existing) {
+        slides[idx].date = existing.date || '';
+        slides[idx].body = existing.body || '';
+      }
+    }
+
+    function removeSlide(idx) {
+      slides[idx] = null;
+      document.getElementById(`slide-${idx}`).remove();
+    }
+
+    function onFileChange(idx, input) {
+      const file = input.files[0];
+      if (!file) return;
+      slides[idx].file = file;
+      const preview = document.getElementById(`preview-${idx}`);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+    }
+
+    /* ── 발행 / 저장 ── */
+    async function publish() {
+      const title = document.getElementById('post-title').value.trim();
+      const statusEl = document.getElementById('publish-status');
+
+      if (!title) {
+        statusEl.textContent = '제목을 입력해주세요.';
+        statusEl.className = 'status-msg error';
+        return;
+      }
+
+      const activeSlides = slides.filter(s => s !== null && (s.file || s.existingUrl));
+      if (activeSlides.length === 0) {
+        statusEl.textContent = '사진을 최소 1장 추가해주세요.';
+        statusEl.className = 'status-msg error';
+        return;
+      }
+
+      statusEl.textContent = '저장 중...';
+      statusEl.className = 'status-msg';
+
+      try {
+        const uploadedSlides = [];
+        for (const slide of activeSlides) {
+          let photoUrl = slide.existingUrl;
+
+          // 새 파일이 있으면 업로드
+          if (slide.file) {
+            const ext = slide.file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+            const { error: uploadErr } = await db.storage
+              .from('photos')
+              .upload(fileName, slide.file);
+            if (uploadErr) throw uploadErr;
+
+            const { data: { publicUrl } } = db.storage
+              .from('photos')
+              .getPublicUrl(fileName);
+            photoUrl = publicUrl;
+          }
+
+          uploadedSlides.push({
+            photo_url: photoUrl,
+            date: slide.date,
+            body: slide.body,
+          });
+        }
+
+        if (editingId) {
+          // 편집 모드: UPDATE
+          const { error } = await db
+            .from('posts')
+            .update({ title, slides: uploadedSlides })
+            .eq('id', editingId);
+          if (error) throw error;
+        } else {
+          // 새 글 모드: INSERT
+          const { error } = await db
+            .from('posts')
+            .insert({ title, slides: uploadedSlides });
+          if (error) throw error;
+        }
+
+        statusEl.textContent = editingId ? '저장 완료!' : '발행 완료!';
+        statusEl.className = 'status-msg';
+        setTimeout(() => renderAdmin(), 1200);
+
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = '오류가 발생했습니다. 다시 시도해주세요.';
+        statusEl.className = 'status-msg error';
+      }
+    }
+
+    /* ── 글 목록 ── */
+    async function loadPostList() {
+      const listEl = document.getElementById('post-list');
+      const { data: posts, error } = await db
+        .from('posts')
+        .select('id, title, created_at, slides')
+        .order('created_at', { ascending: false });
+
+      if (error || !posts?.length) {
+        listEl.innerHTML = '';
+        return;
+      }
+
+      listEl.innerHTML = `
+        <h3>발행된 글 (${posts.length})</h3>
+        ${posts.map(p => `
+          <div class="post-list-item">
+            <div>
+              <div class="post-list-title">${escapeHtml(p.title)}</div>
+              <div class="post-list-meta">${p.slides?.length || 0}장 · ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn btn-sm" onclick="startEdit('${p.id}')">편집</button>
+              <button class="btn btn-danger" onclick="deletePost('${p.id}', this)">삭제</button>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function startEdit(id) {
+      const { data: post, error } = await db
+        .from('posts')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error || !post) return;
+      renderAdmin(post);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deletePost(id, btn) {
+      if (!confirm('이 글을 삭제할까요?')) return;
+      btn.disabled = true;
+      btn.textContent = '...';
+      const { error } = await db.from('posts').delete().eq('id', id);
+      if (!error) loadPostList();
+      else { btn.disabled = false; btn.textContent = '삭제'; }
+    }
+
+    /* ── 유틸 ── */
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ── UPDATE 정책 추가 필요 안내 숨김 처리 ── */
+    // Supabase에 update 정책이 없으면 저장이 안 됨 → 별도 안내
+
+    init();
+  </script>
+</body>
+</html>
