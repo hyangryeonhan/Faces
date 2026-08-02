@@ -160,6 +160,7 @@
 
     /* ── 글 목록 화면 (기본 홈) ── */
     async function renderList() {
+      window.onbeforeunload = null;
       document.getElementById('app').innerHTML = `
         <div class="admin-page">
           <h2>
@@ -220,7 +221,7 @@
           <h2>
             ${isEdit ? '글 편집' : '새 글 작성'}
             <div style="display:flex;gap:0.5rem;">
-              <button class="btn btn-sm" onclick="renderList()">← 목록</button>
+              <button class="btn btn-sm" onclick="leaveEditor(renderList)">← 목록</button>
             </div>
           </h2>
 
@@ -286,6 +287,17 @@
       // 에디터 포커스 시 커서 저장
       document.getElementById('post-editor').addEventListener('mouseup', saveRange);
       document.getElementById('post-editor').addEventListener('keyup', saveRange);
+
+      // 브라우저 탭 닫기 / 주소 이동 시 경고
+      window.onbeforeunload = () => '저장하지 않은 내용이 있습니다. 페이지를 벗어나시겠습니까?';
+    }
+
+    /* ── 에디터에서 벗어날 때 경고 ── */
+    function leaveEditor(callback) {
+      if (confirm('저장하지 않은 내용이 있습니다. 나가시겠습니까?')) {
+        window.onbeforeunload = null;
+        callback();
+      }
     }
 
     /* ── 썸네일 파일 선택 ── */
@@ -535,6 +547,7 @@
           if (error) throw error;
         }
 
+        window.onbeforeunload = null; // 저장 완료 후 경고 해제
         statusEl.textContent = editingId ? '저장 완료!' : '발행 완료!';
         statusEl.className = 'status-msg';
         setTimeout(() => renderList(), 1200);
