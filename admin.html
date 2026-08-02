@@ -176,7 +176,7 @@
 
       const { data: posts, error } = await db
         .from('posts')
-        .select('id, title, created_at, slides')
+        .select('id, title, created_at, slides, status')
         .order('created_at', { ascending: false });
 
       const listEl = document.getElementById('post-list-main');
@@ -186,11 +186,15 @@
       }
 
       listEl.innerHTML = posts.map(p => {
+        const isDraft = p.status !== 'published';
         const photoCount = (p.slides || []).filter(b => b.type === 'photo' || b.photo_url).length;
+        const draftChip = isDraft
+          ? `<span style="font-size:11px;border:1px solid #aaa;color:#888;padding:1px 7px;margin-left:6px;vertical-align:middle;">임시저장</span>`
+          : '';
         return `
           <div class="post-list-item">
             <div>
-              <div class="post-list-title">${escapeHtml(p.title)}</div>
+              <div class="post-list-title">${escapeHtml(p.title)}${draftChip}</div>
               <div class="post-list-meta">사진 ${photoCount}장 · ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
             </div>
             <div style="display:flex;gap:0.5rem;">
@@ -255,11 +259,14 @@
             </div>
           </div>
 
-          <div>
-            <button class="btn btn-primary" onclick="publish()">
-              ${isEdit ? '저장하기' : '발행하기'}
-            </button>
-            <span id="publish-status" class="status-msg" style="margin-left:1rem;"></span>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:1rem;">
+            <button class="btn" onclick="saveDraft()">임시저장</button>
+            <div style="display:flex; align-items:center; gap:1rem;">
+              <span id="publish-status" class="status-msg"></span>
+              <button class="btn btn-primary" onclick="publish()">
+                ${editPost?.status === 'published' ? '수정 발행하기' : '발행하기'}
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -285,16 +292,23 @@
       fileInput.onchange = handlePhotoFile;
 
       // 에디터 포커스 시 커서 저장
-      document.getElementById('post-editor').addEventListener('mouseup', saveRange);
-      document.getElementById('post-editor').addEventListener('keyup', saveRange);
+      const editorEl = document.getElementById('post-editor');
+      editorEl.addEventListener('mouseup', saveRange);
+      editorEl.addEventListener('keyup', saveRange);
 
-      // 브라우저 탭 닫기 / 주소 이동 시 경고
-      window.onbeforeunload = () => '저장하지 않은 내용이 있습니다. 페이지를 벗어나시겠습니까?';
+      // 변경 감지 → dirty 상태일 때만 경고
+      window.onbeforeunload = null;
+      const markDirty = () => {
+        window.onbeforeunload = () => '저장하지 않은 내용이 있습니다. 페이지를 벗어나시겠습니까?';
+      };
+      editorEl.addEventListener('input', markDirty);
+      document.getElementById('post-title').addEventListener('input', markDirty);
+      document.getElementById('thumb-input').addEventListener('change', markDirty);
     }
 
     /* ── 에디터에서 벗어날 때 경고 ── */
     function leaveEditor(callback) {
-      if (confirm('저장하지 않은 내용이 있습니다. 나가시겠습니까?')) {
+      if (!window.onbeforeunload || confirm('저장하지 않은 내용이 있습니다. 나가시겠습니까?')) {
         window.onbeforeunload = null;
         callback();
       }
@@ -330,6 +344,8 @@
     function handlePhotoFile() {
       const file = this.files[0];
       if (!file) return;
+      // 사진 추가도 dirty 처리
+      window.onbeforeunload = () => '저장하지 않은 내용이 있습니다. 페이지를 벗어나시겠습니까?';
 
       const blockId = `pb-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       pendingFiles.set(blockId, file);
@@ -484,7 +500,84 @@
       return result;
     }
 
-    /* ── 발행 / 저장 ── */
+    /* ── 블록 업로드 공통 처리 ── */
+    async function buildSavedBlocks(rawBlocks) {
+      // 썸네일 업로드
+      let finalThumbUrl = thumbnailUrl;
+      if (thumbnailFile) {
+        const ext = thumbnailFile.name.split('.').pop();
+        const fileName = `thumb_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: tErr } = await db.storage.from('photos').upload(fileName, thumbnailFile);
+        if (tErr) throw tErr;
+        const { data: { publicUrl } } = db.storage.from('photos').getPublicUrl(fileName);
+        finalThumbUrl = publicUrl;
+      }
+
+      const savedBlocks = [];
+      if (finalThumbUrl) savedBlocks.push({ type: 'thumbnail', url: finalThumbUrl });
+
+      for (const block of rawBlocks) {
+        if (block.type === 'text') {
+          savedBlocks.push({ type: 'text', content: block.content });
+        } else if (block.type === 'photo') {
+          let url = block.url;
+          if (block._file) {
+            const ext = block._file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+            const { error: upErr } = await db.storage.from('photos').upload(fileName, block._file);
+            if (upErr) throw upErr;
+            const { data: { publicUrl } } = db.storage.from('photos').getPublicUrl(fileName);
+            url = publicUrl;
+          }
+          if (url) savedBlocks.push({ type: 'photo', url, date: block.date });
+        }
+      }
+      return savedBlocks;
+    }
+
+    /* ── 임시저장 ── */
+    async function saveDraft() {
+      const title = document.getElementById('post-title')?.value.trim();
+      const statusEl = document.getElementById('publish-status');
+
+      if (!title) {
+        statusEl.textContent = '제목을 입력해주세요.';
+        statusEl.className = 'status-msg error';
+        return;
+      }
+
+      statusEl.textContent = '임시저장 중...';
+      statusEl.className = 'status-msg';
+
+      try {
+        const rawBlocks = serializeEditor();
+        const savedBlocks = await buildSavedBlocks(rawBlocks);
+
+        if (editingId) {
+          const { error } = await db.from('posts').update({ title, slides: savedBlocks, status: 'draft' }).eq('id', editingId);
+          if (error) throw error;
+        } else {
+          const { data, error } = await db.from('posts').insert({ title, slides: savedBlocks, status: 'draft' }).select('id').single();
+          if (error) throw error;
+          editingId = data.id; // 이후 재저장 시 update로 처리
+        }
+
+        // 업로드된 파일은 이제 URL로 교체 (pendingFiles 초기화)
+        thumbnailFile = null;
+        pendingFiles.clear();
+
+        window.onbeforeunload = null;
+        statusEl.textContent = '임시저장 완료!';
+        statusEl.className = 'status-msg';
+        setTimeout(() => { statusEl.textContent = ''; }, 2000);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = '오류가 발생했습니다.';
+        statusEl.className = 'status-msg error';
+      }
+    }
+
+    /* ── 발행 ── */
     async function publish() {
       const title = document.getElementById('post-title')?.value.trim();
       const statusEl = document.getElementById('publish-status');
@@ -507,47 +600,17 @@
       statusEl.className = 'status-msg';
 
       try {
-        // 썸네일 업로드
-        let finalThumbUrl = thumbnailUrl;
-        if (thumbnailFile) {
-          const ext = thumbnailFile.name.split('.').pop();
-          const fileName = `thumb_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-          const { error: tErr } = await db.storage.from('photos').upload(fileName, thumbnailFile);
-          if (tErr) throw tErr;
-          const { data: { publicUrl } } = db.storage.from('photos').getPublicUrl(fileName);
-          finalThumbUrl = publicUrl;
-        }
-
-        const savedBlocks = [];
-        // 썸네일 블록을 맨 앞에 저장
-        if (finalThumbUrl) savedBlocks.push({ type: 'thumbnail', url: finalThumbUrl });
-
-        for (const block of rawBlocks) {
-          if (block.type === 'text') {
-            savedBlocks.push({ type: 'text', content: block.content });
-          } else if (block.type === 'photo') {
-            let url = block.url;
-            if (block._file) {
-              const ext = block._file.name.split('.').pop();
-              const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-              const { error: upErr } = await db.storage.from('photos').upload(fileName, block._file);
-              if (upErr) throw upErr;
-              const { data: { publicUrl } } = db.storage.from('photos').getPublicUrl(fileName);
-              url = publicUrl;
-            }
-            if (url) savedBlocks.push({ type: 'photo', url, date: block.date });
-          }
-        }
+        const savedBlocks = await buildSavedBlocks(rawBlocks);
 
         if (editingId) {
-          const { error } = await db.from('posts').update({ title, slides: savedBlocks }).eq('id', editingId);
+          const { error } = await db.from('posts').update({ title, slides: savedBlocks, status: 'published' }).eq('id', editingId);
           if (error) throw error;
         } else {
-          const { error } = await db.from('posts').insert({ title, slides: savedBlocks });
+          const { error } = await db.from('posts').insert({ title, slides: savedBlocks, status: 'published' });
           if (error) throw error;
         }
 
-        window.onbeforeunload = null; // 저장 완료 후 경고 해제
+        window.onbeforeunload = null;
         statusEl.textContent = editingId ? '저장 완료!' : '발행 완료!';
         statusEl.className = 'status-msg';
         setTimeout(() => renderList(), 1200);
