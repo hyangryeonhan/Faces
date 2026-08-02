@@ -24,6 +24,7 @@ body {
   color: var(--text-primary);
   font-family: 'Pretendard', -apple-system, sans-serif;
   font-weight: 400;
+  overflow-x: hidden;
 }
 
 /* ── 홈 ── */
@@ -73,20 +74,30 @@ body {
 
 .gallery {
   display: grid;
-  grid-template-columns: repeat(6, 270px);
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 64px;
 }
 
-@media (max-width: 1800px) {
-  .gallery { grid-template-columns: repeat(6, 1fr); gap: 64px; }
-  .frame { width: 100%; height: auto; aspect-ratio: 1/1; }
-  .frame img { width: 43%; height: 43%; }
+.frame {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1/1;
 }
+
+.frame img {
+  width: 43%;
+  height: 43%;
+}
+
 @media (max-width: 900px) {
-  .gallery { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .gallery { gap: 24px; }
 }
-@media (max-width: 520px) {
-  .gallery { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 600px) {
+  .gallery {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .gallery-wrap { padding: 16px 16px 3rem; }
 }
 
 
@@ -97,20 +108,19 @@ body {
 }
 
 .frame {
-  width: 270px;
-  height: 270px;
+  width: 100%;
+  aspect-ratio: 1/1;
   border: 1px solid #d9d9d9;
   background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 .frame img {
-  width: 116px;
-  height: 116px;
+  width: 43%;
+  height: 43%;
   object-fit: cover;
   display: block;
   background: #d9d9d9;
