@@ -5,11 +5,152 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Faces</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── 상세 페이지 전용 ── */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 100;
+    }
+
+    .sticky-header .site-header {
+      padding: 40px 64px 0;
+      text-align: center;
+      transition: padding 0.3s ease;
+    }
+
+    .sticky-header.scrolled .site-header {
+      padding: 14px 64px 0;
+    }
+
+    .sticky-header .header-divider {
+      margin: 14px 64px 0;
+      transition: margin 0.3s ease;
+    }
+
+    .sticky-header.scrolled .header-divider {
+      margin: 10px 64px 0;
+    }
+
+    .post-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 64px;
+      transition: padding 0.3s ease;
+    }
+
+    .sticky-header.scrolled .post-nav {
+      padding: 14px 64px;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #1d1d1d;
+      padding: 0;
+      font-family: inherit;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .post-title-nav {
+      font-size: 16px;
+      font-weight: 400;
+      color: #1d1d1d;
+      text-align: center;
+      flex: 1;
+      padding: 0 24px;
+    }
+
+    /* ── 본문 ── */
+    .post-body-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 0 64px 6rem;
+    }
+
+    .post-card {
+      width: 100%;
+      max-width: 560px;
+      border: 1px solid #e8e8e8;
+      padding: 32px 32px 48px;
+    }
+
+    .slide-block {
+      margin-bottom: 60px;
+    }
+
+    .slide-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .slide-text {
+      font-size: 15px;
+      line-height: 1.9;
+      color: #1d1d1d;
+      white-space: pre-wrap;
+      margin-bottom: 30px;
+    }
+
+    .photo-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .photo-container img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
+    .date-stamp {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      font-family: 'VT323', monospace;
+      font-size: 22px;
+      color: #e8890c;
+      text-shadow: 0 0 10px rgba(232, 137, 12, 0.5);
+      letter-spacing: 3px;
+      pointer-events: none;
+      line-height: 1;
+    }
+
+    @media (max-width: 700px) {
+      .sticky-header .site-header { padding: 24px 24px 0; }
+      .sticky-header.scrolled .site-header { padding: 10px 24px 0; }
+      .sticky-header .header-divider,
+      .sticky-header.scrolled .header-divider { margin: 10px 24px 0; }
+      .post-nav,
+      .sticky-header.scrolled .post-nav { padding: 14px 24px; }
+      .post-body-wrap { padding: 0 24px 4rem; }
+      .post-card { padding: 24px 20px 36px; }
+    }
+  </style>
 </head>
 <body>
 
-  <div id="app">
-    <p class="empty-state" style="padding: 5rem 1.5rem;">불러오는 중...</p>
+  <div class="sticky-header" id="stickyHeader">
+    <header class="site-header">
+      <h1>faces</h1>
+    </header>
+    <div class="header-divider"></div>
+    <nav class="post-nav">
+      <button class="back-btn" onclick="history.back()">←</button>
+      <span class="post-title-nav" id="navTitle"></span>
+      <span class="nickname-tag">Haleyn</span>
+    </nav>
+  </div>
+
+  <div class="post-body-wrap">
+    <div class="post-card" id="postCard">
+      <p style="color:#d9d9d9; font-size:14px;">불러오는 중...</p>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -18,87 +159,56 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqZHZ4eHVhZHRhaXN6ZGl4ZmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzkwMTgsImV4cCI6MjEwMTExNTAxOH0.qvfKLMazqQJfMDoK6BbaTbquZZJlHJXzQJEWnRgPffE';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let post = null;
-    let current = 0;
-
     async function init() {
-      const app = document.getElementById('app');
       const id = new URLSearchParams(location.search).get('id');
+      const card = document.getElementById('postCard');
 
       if (!id) {
-        app.innerHTML = '<p class="empty-state" style="padding:5rem 1.5rem;">글을 찾을 수 없습니다.</p>';
+        card.innerHTML = '<p style="color:#d9d9d9;font-size:14px;">글을 찾을 수 없습니다.</p>';
         return;
       }
 
-      const { data, error } = await db
+      const { data: post, error } = await db
         .from('posts')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (error || !data) {
-        app.innerHTML = '<p class="empty-state" style="padding:5rem 1.5rem;">글을 찾을 수 없습니다.</p>';
+      if (error || !post) {
+        card.innerHTML = '<p style="color:#d9d9d9;font-size:14px;">글을 찾을 수 없습니다.</p>';
         return;
       }
 
-      post = data;
       document.title = `${post.title} — Faces`;
-      render();
-    }
+      document.getElementById('navTitle').textContent = post.title;
 
-    function render() {
-      const app = document.getElementById('app');
       const slides = post.slides || [];
-      const slide = slides[current];
-      const total = slides.length;
 
-      if (!slide) {
-        app.innerHTML = '<p class="empty-state" style="padding:5rem 1.5rem;">슬라이드가 없습니다.</p>';
+      if (slides.length === 0) {
+        card.innerHTML = '<p style="color:#d9d9d9;font-size:14px;">내용이 없습니다.</p>';
         return;
       }
 
-      const navHTML = total > 1 ? `
-        <div class="slide-nav">
-          <button class="nav-btn" onclick="navigate(-1)" ${current === 0 ? 'disabled' : ''}>←</button>
-          <span class="slide-counter">${current + 1} / ${total}</span>
-          <button class="nav-btn" onclick="navigate(1)" ${current === total - 1 ? 'disabled' : ''}>→</button>
-        </div>
-      ` : '';
-
-      app.innerHTML = `
-        <div class="post-page">
-          <div class="post-header">
-            <button class="back-btn" onclick="history.back()">←</button>
-            <h1 class="post-title">${post.title}</h1>
-          </div>
-          <div class="post-content">
-            <div class="post-left">
-              <div class="photo-container">
-                <img src="${slide.photo_url}" alt="${post.title}" />
-                ${slide.date ? `<span class="date-stamp">${slide.date}</span>` : ''}
-              </div>
-              ${navHTML}
-            </div>
-            <div class="post-right">
-              <p class="slide-body">${slide.body || ''}</p>
-            </div>
+      card.innerHTML = slides.map(slide => `
+        <div class="slide-block">
+          ${slide.body ? `<p class="slide-text">${escapeHtml(slide.body)}</p>` : ''}
+          <div class="photo-container">
+            <img src="${slide.photo_url}" alt="${escapeHtml(post.title)}" loading="lazy" />
+            ${slide.date ? `<span class="date-stamp">${escapeHtml(slide.date)}</span>` : ''}
           </div>
         </div>
-      `;
+      `).join('');
     }
 
-    function navigate(dir) {
-      const total = (post.slides || []).length;
-      const next = current + dir;
-      if (next < 0 || next >= total) return;
-      current = next;
-      render();
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') navigate(-1);
-      if (e.key === 'ArrowRight') navigate(1);
-    });
+    // 스크롤 시 헤더 compact 전환
+    const stickyHeader = document.getElementById('stickyHeader');
+    window.addEventListener('scroll', () => {
+      stickyHeader.classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
 
     init();
   </script>
