@@ -6,124 +6,123 @@
   <title>Admin — Faces</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* 블록 에디터 */
-    .editor-wrap {
-      margin-bottom: 2rem;
+    .editor-outer {
+      border: 1px solid #e8e8e4;
+      margin-bottom: 1.5rem;
     }
 
-    .block-text textarea {
-      width: 100%;
-      min-height: 140px;
-      padding: 0.75rem;
-      border: 1px solid #e8e8e4;
-      font-family: 'Pretendard', -apple-system, sans-serif;
-      font-size: 14px;
-      line-height: 1.7;
-      color: var(--text-primary);
-      resize: vertical;
+    #post-editor {
+      min-height: 400px;
+      padding: 1.25rem;
       outline: none;
-      border-radius: 0;
-      -webkit-appearance: none;
-    }
-
-    .block-text textarea:focus {
-      border-color: var(--text-primary);
-    }
-
-    .insert-photo-btn {
-      display: block;
-      width: 100%;
-      padding: 0.5rem;
-      margin: 6px 0;
-      background: none;
-      border: 1px dashed #d9d9d9;
       font-family: 'Pretendard', -apple-system, sans-serif;
-      font-size: 12px;
-      color: #b0b0b0;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s;
+      font-size: 15px;
+      line-height: 1.9;
+      color: #1d1d1d;
+      word-break: break-word;
     }
 
-    .insert-photo-btn:hover {
-      border-color: #999;
-      color: #666;
+    #post-editor:empty::before {
+      content: attr(data-placeholder);
+      color: #c0c0c0;
+      pointer-events: none;
     }
 
-    .block-photo {
-      border: 1px solid #e8e8e4;
-      padding: 1rem;
-      margin: 6px 0;
-      background: #fafafa;
-      position: relative;
-    }
-
-    .block-photo-header {
+    .editor-toolbar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.75rem;
-      font-size: 12px;
-      color: var(--text-secondary);
+      padding: 0.6rem 1rem;
+      border-top: 1px solid #e8e8e4;
+      background: #fafafa;
     }
 
-    .block-photo-preview {
+    .toolbar-btn {
+      background: none;
+      border: 1px solid #d9d9d9;
+      padding: 0.35rem 0.85rem;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      font-family: 'Pretendard', inherit;
+    }
+
+    .toolbar-btn:hover {
+      border-color: #999;
+      color: #333;
+    }
+
+    /* 인라인 사진 블록 */
+    .photo-block {
+      display: block;
+      margin: 1rem 0;
+      border: 1px solid #e8e8e4;
+      background: #fafafa;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .photo-block img {
       width: 100%;
-      max-height: 300px;
+      max-height: 480px;
       object-fit: cover;
       display: block;
-      margin: 0.5rem 0;
-      background: var(--photo-bg);
     }
 
-    .block-date-input {
-      width: 100%;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #ddddd9;
-      background: #fff;
+    .photo-block-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .photo-block-date {
+      flex: 1;
+      border: none;
+      border-bottom: 1px solid #e8e8e4;
+      background: transparent;
       font-family: 'Pretendard', -apple-system, sans-serif;
       font-size: 13px;
-      color: var(--text-primary);
+      color: #1d1d1d;
+      padding: 0.25rem 0;
       outline: none;
-      margin-top: 0.5rem;
-      border-radius: 0;
-      -webkit-appearance: none;
     }
 
-    .block-date-input:focus {
-      border-color: var(--text-primary);
-    }
+    .photo-block-date::placeholder { color: #c0c0c0; }
 
-    .block-date-label {
+    .photo-block-del {
+      background: none;
+      border: 1px solid #e0b0b0;
+      color: #c0392b;
       font-size: 11px;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-top: 0.75rem;
-      display: block;
+      padding: 0.25rem 0.6rem;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
     }
+
+    .photo-block-del:hover { background: #fde; }
   </style>
 </head>
 <body>
-
   <div id="app"></div>
+  <input type="file" id="photo-file-input" accept="image/*" style="display:none;" />
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     const SUPABASE_URL = 'https://kjdvxxuadtaiszdixfdw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqZHZ4eHVhZHRhaXN6ZGl4ZmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzkwMTgsImV4cCI6MjEwMTExNTAxOH0.qvfKLMazqQJfMDoK6BbaTbquZZJlHJXzQJEWnRgPffE';
     const ADMIN_PASSWORD = 'Faces_password';
-
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 블록: [{type:'text', content:''}, {type:'photo', url:'', date:'', file:null}]
-    let blocks = [];
     let editingId = null;
+    let savedRange = null;         // 커서 위치 저장
+    const pendingFiles = new Map(); // blockId → File
+
     let isLoggedIn = sessionStorage.getItem('faces_admin') === '1';
 
     function init() {
       if (!isLoggedIn) renderLogin();
-      else renderAdmin();
+      else renderList();
     }
 
     /* ── 로그인 ── */
@@ -151,10 +150,53 @@
       if (pw === ADMIN_PASSWORD) {
         sessionStorage.setItem('faces_admin', '1');
         isLoggedIn = true;
-        renderAdmin();
+        renderList();
       } else {
         document.getElementById('login-err').style.display = 'block';
       }
+    }
+
+    /* ── 글 목록 화면 (기본 홈) ── */
+    async function renderList() {
+      document.getElementById('app').innerHTML = `
+        <div class="admin-page">
+          <h2>
+            발행된 글
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn btn-primary btn-sm" onclick="renderAdmin()">+ 새 글 작성</button>
+              <button class="btn btn-sm" onclick="logout()">로그아웃</button>
+            </div>
+          </h2>
+          <div id="post-list-main"><p class="status-msg">불러오는 중...</p></div>
+        </div>
+      `;
+
+      const { data: posts, error } = await db
+        .from('posts')
+        .select('id, title, created_at, slides')
+        .order('created_at', { ascending: false });
+
+      const listEl = document.getElementById('post-list-main');
+      if (error || !posts?.length) {
+        listEl.innerHTML = '<p class="status-msg">아직 작성된 글이 없습니다.</p>';
+        return;
+      }
+
+      listEl.innerHTML = posts.map(p => {
+        const photoCount = (p.slides || []).filter(b => b.type === 'photo' || b.photo_url).length;
+        return `
+          <div class="post-list-item">
+            <div>
+              <div class="post-list-title">${escapeHtml(p.title)}</div>
+              <div class="post-list-meta">사진 ${photoCount}장 · ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn btn-sm" onclick="startEdit('${p.id}')">편집</button>
+              <button class="btn btn-danger" onclick="deletePost('${p.id}', this)">삭제</button>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function logout() {
@@ -163,154 +205,233 @@
       renderLogin();
     }
 
-    /* ── 어드민 메인 ── */
+    /* ── 에디터 화면 ── */
     function renderAdmin(editPost = null) {
       editingId = editPost ? editPost.id : null;
+      pendingFiles.clear();
       const isEdit = !!editPost;
-
-      // 기존 글이면 블록 포맷으로 변환
-      if (isEdit) {
-        blocks = toBlocks(editPost.slides || []);
-      } else {
-        blocks = [{ type: 'text', content: '' }];
-      }
 
       document.getElementById('app').innerHTML = `
         <div class="admin-page">
           <h2>
             ${isEdit ? '글 편집' : '새 글 작성'}
             <div style="display:flex;gap:0.5rem;">
-              ${isEdit ? `<button class="btn btn-sm" onclick="renderAdmin()">취소</button>` : ''}
-              <button class="btn btn-sm" onclick="logout()">로그아웃</button>
+              <button class="btn btn-sm" onclick="renderList()">← 목록</button>
             </div>
           </h2>
 
           <div class="form-group">
             <label>글 제목</label>
             <input type="text" id="post-title" placeholder="제목을 입력하세요"
-              value="${isEdit ? escapeHtml(editPost.title) : ''}" />
+              value="${isEdit ? escapeAttr(editPost.title) : ''}" />
           </div>
 
-          <div class="editor-wrap" id="editor-wrap"></div>
+          <div class="editor-outer">
+            <div
+              id="post-editor"
+              contenteditable="true"
+              data-placeholder="글을 작성하세요..."
+            ></div>
+            <div class="editor-toolbar">
+              <button class="toolbar-btn" onclick="triggerPhoto()">+ 사진 추가</button>
+            </div>
+          </div>
 
           <div>
             <button class="btn btn-primary" onclick="publish()">
               ${isEdit ? '저장하기' : '발행하기'}
             </button>
-            <span id="publish-status" class="status-msg" style="margin-left: 1rem;"></span>
+            <span id="publish-status" class="status-msg" style="margin-left:1rem;"></span>
           </div>
-
-          <div class="post-list" id="post-list"></div>
         </div>
       `;
 
-      renderEditor();
-      loadPostList();
+      // 편집 모드: 기존 데이터 에디터에 로드
+      if (isEdit) {
+        const raw = editPost.slides || [];
+        const blocks = normalizeBlocks(raw);
+        loadBlocksToEditor(blocks);
+      }
+
+      // 파일 인풋 이벤트
+      const fileInput = document.getElementById('photo-file-input');
+      fileInput.onchange = handlePhotoFile;
+
+      // 에디터 포커스 시 커서 저장
+      document.getElementById('post-editor').addEventListener('mouseup', saveRange);
+      document.getElementById('post-editor').addEventListener('keyup', saveRange);
     }
 
-    /* ── 블록 변환: 구 포맷 → 새 포맷 ── */
-    function toBlocks(slides) {
-      if (!slides.length) return [{ type: 'text', content: '' }];
-      // 이미 새 포맷이면 그대로
-      if (slides[0].type) return slides.map(b => ({ ...b }));
-      // 구 포맷 변환 (photo_url, date, body)
-      const result = [];
-      for (const s of slides) {
-        result.push({ type: 'text', content: s.body || '' });
-        if (s.photo_url) result.push({ type: 'photo', url: s.photo_url, date: s.date || '', file: null });
+    /* ── 커서 저장 ── */
+    function saveRange() {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        savedRange = sel.getRangeAt(0).cloneRange();
       }
-      // 마지막이 photo면 빈 text 추가
-      if (result[result.length - 1]?.type === 'photo') {
-        result.push({ type: 'text', content: '' });
+    }
+
+    /* ── 사진 삽입 ── */
+    function triggerPhoto() {
+      saveRange(); // 버튼 클릭 전 커서 위치 저장
+      document.getElementById('photo-file-input').value = '';
+      document.getElementById('photo-file-input').click();
+    }
+
+    function handlePhotoFile() {
+      const file = this.files[0];
+      if (!file) return;
+
+      const blockId = `pb-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      pendingFiles.set(blockId, file);
+      const previewUrl = URL.createObjectURL(file);
+
+      const block = makePhotoBlock(blockId, previewUrl, '', '');
+      insertBlockAtCursor(block);
+    }
+
+    function makePhotoBlock(blockId, previewUrl, existingUrl, date) {
+      const wrap = document.createElement('div');
+      wrap.contentEditable = 'false';
+      wrap.className = 'photo-block';
+      wrap.dataset.blockId = blockId;
+      wrap.dataset.url = existingUrl;
+
+      const img = document.createElement('img');
+      img.src = previewUrl;
+      wrap.appendChild(img);
+
+      const controls = document.createElement('div');
+      controls.className = 'photo-block-controls';
+
+      const dateInput = document.createElement('input');
+      dateInput.type = 'text';
+      dateInput.className = 'photo-block-date';
+      dateInput.placeholder = '날짜 (예: 16 07 10)';
+      dateInput.value = date;
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'photo-block-del';
+      delBtn.textContent = '삭제';
+      delBtn.onclick = () => {
+        wrap.remove();
+        pendingFiles.delete(blockId);
+      };
+
+      controls.appendChild(dateInput);
+      controls.appendChild(delBtn);
+      wrap.appendChild(controls);
+
+      return wrap;
+    }
+
+    function insertBlockAtCursor(block) {
+      const editor = document.getElementById('post-editor');
+      editor.focus();
+
+      let range;
+      if (savedRange) {
+        // 저장된 커서가 에디터 안에 있는지 확인
+        if (editor.contains(savedRange.commonAncestorContainer)) {
+          range = savedRange;
+        }
+      }
+
+      if (range) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        range.collapse(false);
+        range.insertNode(block);
+        // 사진 뒤에 줄바꿈 추가
+        const br = document.createElement('br');
+        block.after(br);
+        // 커서를 br 뒤로
+        const newRange = document.createRange();
+        newRange.setStartAfter(br);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        savedRange = newRange.cloneRange();
+      } else {
+        // 커서 없으면 맨 끝에 추가
+        editor.appendChild(block);
+        const br = document.createElement('br');
+        editor.appendChild(br);
+      }
+    }
+
+    /* ── 에디터 → 블록 배열 직렬화 ── */
+    function serializeEditor() {
+      const editor = document.getElementById('post-editor');
+      const blocks = [];
+      let textBuf = '';
+
+      function flush() {
+        const t = textBuf.replace(/^\n+|\n+$/g, ''); // trim newlines
+        if (t) blocks.push({ type: 'text', content: t });
+        textBuf = '';
+      }
+
+      function walk(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          textBuf += node.textContent;
+        } else if (node.nodeName === 'BR') {
+          textBuf += '\n';
+        } else if (node.classList?.contains('photo-block')) {
+          flush();
+          const dateVal = node.querySelector('.photo-block-date')?.value || '';
+          blocks.push({
+            type: 'photo',
+            url: node.dataset.url || '',
+            date: dateVal,
+            _file: pendingFiles.get(node.dataset.blockId) || null,
+          });
+        } else if (node.nodeName === 'DIV' || node.nodeName === 'P') {
+          for (const child of node.childNodes) walk(child);
+          textBuf += '\n';
+        } else {
+          for (const child of node.childNodes) walk(child);
+        }
+      }
+
+      for (const child of editor.childNodes) walk(child);
+      flush();
+      return blocks;
+    }
+
+    /* ── 블록 배열 → 에디터 로드 ── */
+    function loadBlocksToEditor(blocks) {
+      const editor = document.getElementById('post-editor');
+      editor.innerHTML = '';
+
+      for (const block of blocks) {
+        if (block.type === 'text') {
+          const lines = block.content.split('\n');
+          lines.forEach((line, i) => {
+            editor.appendChild(document.createTextNode(line));
+            if (i < lines.length - 1) editor.appendChild(document.createElement('br'));
+          });
+          editor.appendChild(document.createElement('br'));
+        } else if (block.type === 'photo') {
+          const blockId = `existing-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const el = makePhotoBlock(blockId, block.url, block.url, block.date || '');
+          editor.appendChild(el);
+          editor.appendChild(document.createElement('br'));
+        }
+      }
+    }
+
+    /* ── 구 포맷 → 새 포맷 변환 ── */
+    function normalizeBlocks(raw) {
+      if (!raw.length) return [];
+      if (raw[0].type) return raw;
+      // 구 포맷: {photo_url, date, body}
+      const result = [];
+      for (const s of raw) {
+        if (s.body) result.push({ type: 'text', content: s.body });
+        if (s.photo_url) result.push({ type: 'photo', url: s.photo_url, date: s.date || '' });
       }
       return result;
-    }
-
-    /* ── 에디터 렌더 ── */
-    function renderEditor() {
-      const wrap = document.getElementById('editor-wrap');
-      if (!wrap) return;
-
-      wrap.innerHTML = '';
-
-      blocks.forEach((block, i) => {
-        if (block.type === 'text') {
-          // 텍스트 블록
-          const div = document.createElement('div');
-          div.className = 'block-text';
-          div.dataset.idx = i;
-
-          const ta = document.createElement('textarea');
-          ta.placeholder = '글을 작성하세요...';
-          ta.value = block.content;
-          ta.addEventListener('input', () => { blocks[i].content = ta.value; });
-          div.appendChild(ta);
-
-          // 사진 삽입 버튼 (텍스트 블록 아래)
-          const addBtn = document.createElement('button');
-          addBtn.className = 'insert-photo-btn';
-          addBtn.textContent = '+ 사진 추가';
-          addBtn.addEventListener('click', () => insertPhotoAfter(i));
-          div.appendChild(addBtn);
-
-          wrap.appendChild(div);
-
-        } else if (block.type === 'photo') {
-          // 사진 블록
-          const div = document.createElement('div');
-          div.className = 'block-photo';
-          div.dataset.idx = i;
-
-          div.innerHTML = `
-            <div class="block-photo-header">
-              <span>사진</span>
-              <button class="btn btn-danger" onclick="removeBlock(${i})">삭제</button>
-            </div>
-            <input type="file" accept="image/*" />
-            ${block.url ? `<img class="block-photo-preview" src="${block.url}" />` : `<img class="block-photo-preview" style="display:none;" />`}
-            <span class="block-date-label">날짜 (예: 16 07 10)</span>
-            <input class="block-date-input" type="text" placeholder="YY MM DD" value="${escapeHtml(block.date || '')}" />
-          `;
-
-          const fileInput = div.querySelector('input[type="file"]');
-          const preview = div.querySelector('.block-photo-preview');
-          const dateInput = div.querySelector('.block-date-input');
-
-          fileInput.addEventListener('change', () => {
-            const file = fileInput.files[0];
-            if (!file) return;
-            blocks[i].file = file;
-            preview.src = URL.createObjectURL(file);
-            preview.style.display = 'block';
-          });
-
-          dateInput.addEventListener('input', () => {
-            blocks[i].date = dateInput.value;
-          });
-
-          wrap.appendChild(div);
-        }
-      });
-    }
-
-    /* ── 사진 블록 삽입 (텍스트 블록 i 뒤에) ── */
-    function insertPhotoAfter(idx) {
-      // idx 텍스트 블록 뒤에 photo + text 삽입
-      blocks.splice(idx + 1, 0,
-        { type: 'photo', url: '', date: '', file: null },
-        { type: 'text', content: '' }
-      );
-      renderEditor();
-    }
-
-    /* ── 블록 삭제 (photo + 이후 빈 text 함께 제거) ── */
-    function removeBlock(idx) {
-      // photo 블록 제거
-      blocks.splice(idx, 1);
-      // 앞뒤 text 블록이 연속되면 합치지 않고 그냥 둠
-      // 단, 블록이 없으면 기본 text 하나 추가
-      if (blocks.length === 0) blocks.push({ type: 'text', content: '' });
-      renderEditor();
     }
 
     /* ── 발행 / 저장 ── */
@@ -324,7 +445,8 @@
         return;
       }
 
-      const hasPhoto = blocks.some(b => b.type === 'photo' && (b.url || b.file));
+      const rawBlocks = serializeEditor();
+      const hasPhoto = rawBlocks.some(b => b.type === 'photo' && (b.url || b._file));
       if (!hasPhoto) {
         statusEl.textContent = '사진을 최소 1장 추가해주세요.';
         statusEl.className = 'status-msg error';
@@ -336,16 +458,16 @@
 
       try {
         const savedBlocks = [];
-        for (const block of blocks) {
+        for (const block of rawBlocks) {
           if (block.type === 'text') {
             savedBlocks.push({ type: 'text', content: block.content });
           } else if (block.type === 'photo') {
             let url = block.url;
-            if (block.file) {
-              const ext = block.file.name.split('.').pop();
+            if (block._file) {
+              const ext = block._file.name.split('.').pop();
               const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-              const { error: uploadErr } = await db.storage.from('photos').upload(fileName, block.file);
-              if (uploadErr) throw uploadErr;
+              const { error: upErr } = await db.storage.from('photos').upload(fileName, block._file);
+              if (upErr) throw upErr;
               const { data: { publicUrl } } = db.storage.from('photos').getPublicUrl(fileName);
               url = publicUrl;
             }
@@ -363,44 +485,12 @@
 
         statusEl.textContent = editingId ? '저장 완료!' : '발행 완료!';
         statusEl.className = 'status-msg';
-        setTimeout(() => renderAdmin(), 1200);
-
+        setTimeout(() => renderList(), 1200);
       } catch (err) {
         console.error(err);
-        statusEl.textContent = '오류가 발생했습니다. 다시 시도해주세요.';
+        statusEl.textContent = '오류가 발생했습니다.';
         statusEl.className = 'status-msg error';
       }
-    }
-
-    /* ── 글 목록 ── */
-    async function loadPostList() {
-      const listEl = document.getElementById('post-list');
-      if (!listEl) return;
-      const { data: posts, error } = await db
-        .from('posts')
-        .select('id, title, created_at, slides')
-        .order('created_at', { ascending: false });
-
-      if (error || !posts?.length) { listEl.innerHTML = ''; return; }
-
-      listEl.innerHTML = `
-        <h3>발행된 글 (${posts.length})</h3>
-        ${posts.map(p => {
-          const photoCount = (p.slides || []).filter(b => b.type === 'photo' || b.photo_url).length;
-          return `
-            <div class="post-list-item">
-              <div>
-                <div class="post-list-title">${escapeHtml(p.title)}</div>
-                <div class="post-list-meta">사진 ${photoCount}장 · ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
-              </div>
-              <div style="display:flex;gap:0.5rem;">
-                <button class="btn btn-sm" onclick="startEdit('${p.id}')">편집</button>
-                <button class="btn btn-danger" onclick="deletePost('${p.id}', this)">삭제</button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      `;
     }
 
     async function startEdit(id) {
@@ -412,15 +502,18 @@
 
     async function deletePost(id, btn) {
       if (!confirm('이 글을 삭제할까요?')) return;
-      btn.disabled = true;
-      btn.textContent = '...';
+      btn.disabled = true; btn.textContent = '...';
       const { error } = await db.from('posts').delete().eq('id', id);
-      if (!error) loadPostList();
+      if (!error) renderList();
       else { btn.disabled = false; btn.textContent = '삭제'; }
     }
 
     function escapeHtml(str) {
       return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function escapeAttr(str) {
+      return (str || '').replace(/"/g, '&quot;');
     }
 
     init();
