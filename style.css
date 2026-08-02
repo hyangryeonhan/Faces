@@ -278,6 +278,37 @@ body {
   .post-left { position: static; }
 }
 
+/* ── 모바일 (프론트) ── */
+@media (max-width: 768px) {
+  .site-header {
+    padding: 32px 1rem 0;
+  }
+  .site-header h1 {
+    font-size: 16px;   /* 20 × 0.8 */
+    line-height: 15px; /* 30 × 0.5 */
+    margin-bottom: 6px;
+  }
+  .site-header p {
+    font-size: 13px;   /* 16 × 0.8 */
+    line-height: 10px; /* 20 × 0.5 */
+  }
+  .header-divider {
+    margin: 20px 24px 0;
+  }
+  .gallery-wrap {
+    padding: 20px 20px 3rem;
+  }
+  .nickname-tag {
+    font-size: 10px;   /* 12 × 0.8 */
+    line-height: 10px;
+    padding: 2px 8px;
+    margin-bottom: 8px;
+  }
+  .frame-title {
+    font-size: 10px;
+  }
+}
+
 /* ── 어드민 ── */
 .admin-login {
   min-height: 100vh;

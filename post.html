@@ -131,15 +131,33 @@
       .post-card { padding: 40px 10% 80px; }
     }
 
-    @media (max-width: 700px) {
-      .sticky-header .site-header { padding: 24px 24px 0; }
-      .sticky-header.scrolled .site-header { padding: 10px 24px 0; }
+    @media (max-width: 768px) {
+      /* 타이틀 헤더 */
+      .sticky-header .site-header { padding: 20px 20px 0; }
+      .sticky-header.scrolled .site-header { padding: 8px 20px 0; }
+      .sticky-header .site-header h1 {
+        font-size: 19px;   /* 24 × 0.8 */
+        line-height: 12px; /* 24 × 0.5 */
+      }
       .sticky-header .header-divider,
-      .sticky-header.scrolled .header-divider { margin: 10px 24px 0; }
+      .sticky-header.scrolled .header-divider { margin: 10px 20px 0; }
       .post-nav,
-      .sticky-header.scrolled .post-nav { padding: 14px 24px; }
-      .post-body-wrap { padding: 0 24px 4rem; }
-      .post-card { padding: 24px 24px 36px; }
+      .sticky-header.scrolled .post-nav { padding: 12px 20px; }
+      .post-title-nav {
+        font-size: 13px;   /* 16 × 0.8 */
+      }
+      /* 본문 카드 */
+      .post-body-wrap { padding: 0 20px 4rem; }
+      .post-card { padding: 20px 20px 32px; }
+      .slide-text {
+        font-size: 13px;   /* 16 × 0.8 */
+        line-height: 1.0;  /* 1.9 × 0.5 ≈ 1.0 */
+        margin-bottom: 16px;
+      }
+      .slide-block { margin-bottom: 36px; }
+      .date-stamp {
+        font-size: 16px;   /* 22 × 0.8 → 18, 줄여서 16 */
+      }
     }
   </style>
 </head>
