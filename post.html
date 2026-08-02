@@ -192,22 +192,35 @@
       document.title = `${post.title} — Faces`;
       document.getElementById('navTitle').textContent = post.title;
 
-      const slides = post.slides || [];
-
-      if (slides.length === 0) {
+      const raw = post.slides || [];
+      if (raw.length === 0) {
         card.innerHTML = '<p style="color:#d9d9d9;font-size:14px;">내용이 없습니다.</p>';
         return;
       }
 
-      card.innerHTML = slides.map(slide => `
-        <div class="slide-block">
-          ${slide.body ? `<p class="slide-text">${escapeHtml(slide.body)}</p>` : ''}
-          <div class="photo-container">
-            <img src="${slide.photo_url}" alt="${escapeHtml(post.title)}" loading="lazy" />
-            ${slide.date ? `<span class="date-stamp">${escapeHtml(slide.date)}</span>` : ''}
-          </div>
-        </div>
-      `).join('');
+      // 구 포맷({photo_url,date,body}) → 새 포맷({type}) 변환
+      const blocks = raw[0].type ? raw : raw.flatMap(s => {
+        const out = [];
+        if (s.body) out.push({ type: 'text', content: s.body });
+        if (s.photo_url) out.push({ type: 'photo', url: s.photo_url, date: s.date || '' });
+        return out;
+      });
+
+      card.innerHTML = blocks.map(block => {
+        if (block.type === 'text') {
+          return block.content
+            ? `<p class="slide-text">${escapeHtml(block.content)}</p>`
+            : '';
+        } else if (block.type === 'photo') {
+          return `
+            <div class="photo-container">
+              <img src="${block.url}" alt="${escapeHtml(post.title)}" loading="lazy" />
+              ${block.date ? `<span class="date-stamp">${escapeHtml(block.date)}</span>` : ''}
+            </div>
+          `;
+        }
+        return '';
+      }).join('');
     }
 
     function escapeHtml(str) {

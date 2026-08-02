@@ -5,6 +5,104 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — Faces</title>
   <link rel="stylesheet" href="style.css" />
+  <style>
+    /* 블록 에디터 */
+    .editor-wrap {
+      margin-bottom: 2rem;
+    }
+
+    .block-text textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 0.75rem;
+      border: 1px solid #e8e8e4;
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-primary);
+      resize: vertical;
+      outline: none;
+      border-radius: 0;
+      -webkit-appearance: none;
+    }
+
+    .block-text textarea:focus {
+      border-color: var(--text-primary);
+    }
+
+    .insert-photo-btn {
+      display: block;
+      width: 100%;
+      padding: 0.5rem;
+      margin: 6px 0;
+      background: none;
+      border: 1px dashed #d9d9d9;
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      font-size: 12px;
+      color: #b0b0b0;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+
+    .insert-photo-btn:hover {
+      border-color: #999;
+      color: #666;
+    }
+
+    .block-photo {
+      border: 1px solid #e8e8e4;
+      padding: 1rem;
+      margin: 6px 0;
+      background: #fafafa;
+      position: relative;
+    }
+
+    .block-photo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .block-photo-preview {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      display: block;
+      margin: 0.5rem 0;
+      background: var(--photo-bg);
+    }
+
+    .block-date-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ddddd9;
+      background: #fff;
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+      margin-top: 0.5rem;
+      border-radius: 0;
+      -webkit-appearance: none;
+    }
+
+    .block-date-input:focus {
+      border-color: var(--text-primary);
+    }
+
+    .block-date-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.75rem;
+      display: block;
+    }
+  </style>
 </head>
 <body>
 
@@ -18,8 +116,9 @@
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let slides = [];           // 현재 폼의 슬라이드
-    let editingId = null;      // 편집 중인 글 ID (null이면 새 글)
+    // 블록: [{type:'text', content:''}, {type:'photo', url:'', date:'', file:null}]
+    let blocks = [];
+    let editingId = null;
     let isLoggedIn = sessionStorage.getItem('faces_admin') === '1';
 
     function init() {
@@ -67,15 +166,19 @@
     /* ── 어드민 메인 ── */
     function renderAdmin(editPost = null) {
       editingId = editPost ? editPost.id : null;
-      slides = [];
-
       const isEdit = !!editPost;
-      const formTitle = isEdit ? '글 편집' : '새 글 작성';
+
+      // 기존 글이면 블록 포맷으로 변환
+      if (isEdit) {
+        blocks = toBlocks(editPost.slides || []);
+      } else {
+        blocks = [{ type: 'text', content: '' }];
+      }
 
       document.getElementById('app').innerHTML = `
         <div class="admin-page">
           <h2>
-            ${formTitle}
+            ${isEdit ? '글 편집' : '새 글 작성'}
             <div style="display:flex;gap:0.5rem;">
               ${isEdit ? `<button class="btn btn-sm" onclick="renderAdmin()">취소</button>` : ''}
               <button class="btn btn-sm" onclick="logout()">로그아웃</button>
@@ -88,9 +191,7 @@
               value="${isEdit ? escapeHtml(editPost.title) : ''}" />
           </div>
 
-          <div id="slides-container"></div>
-
-          <button class="btn" onclick="addSlide()" style="margin-bottom: 2rem;">+ 사진 추가</button>
+          <div class="editor-wrap" id="editor-wrap"></div>
 
           <div>
             <button class="btn btn-primary" onclick="publish()">
@@ -103,82 +204,118 @@
         </div>
       `;
 
-      if (isEdit) {
-        // 기존 슬라이드 불러오기
-        (editPost.slides || []).forEach(s => addSlide(s));
-      } else {
-        addSlide();
-      }
-
+      renderEditor();
       loadPostList();
     }
 
-    /* ── 슬라이드 추가 ── */
-    function addSlide(existing = null) {
-      const idx = slides.length;
-      slides.push({
-        file: null,
-        existingUrl: existing?.photo_url || null,
-        date: existing?.date || '',
-        body: existing?.body || '',
-      });
-
-      const container = document.getElementById('slides-container');
-      const card = document.createElement('div');
-      card.className = 'slide-card';
-      card.id = `slide-${idx}`;
-
-      const previewHtml = existing?.photo_url
-        ? `<img id="preview-${idx}" class="slide-preview" src="${existing.photo_url}" style="margin-top:0.5rem;" />`
-        : `<img id="preview-${idx}" class="slide-preview" style="display:none; margin-top:0.5rem;" />`;
-
-      card.innerHTML = `
-        <div class="slide-card-header">
-          <span>사진 ${idx + 1}</span>
-          ${idx > 0 ? `<button class="btn btn-danger" onclick="removeSlide(${idx})">삭제</button>` : ''}
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label>사진 파일 ${existing ? '(새 파일 선택 시 교체)' : ''}</label>
-          <input type="file" accept="image/*" onchange="onFileChange(${idx}, this)" />
-          ${previewHtml}
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label>날짜 (예: 16 07 10)</label>
-          <input type="text" placeholder="YY MM DD" value="${escapeHtml(existing?.date || '')}"
-            oninput="slides[${idx}].date = this.value" />
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label>본문 텍스트</label>
-          <textarea placeholder="이 사진에 대한 글을 쓰세요..."
-            oninput="slides[${idx}].body = this.value">${escapeHtml(existing?.body || '')}</textarea>
-        </div>
-      `;
-      container.appendChild(card);
-
-      // 기존 값 slides 배열에 반영
-      if (existing) {
-        slides[idx].date = existing.date || '';
-        slides[idx].body = existing.body || '';
+    /* ── 블록 변환: 구 포맷 → 새 포맷 ── */
+    function toBlocks(slides) {
+      if (!slides.length) return [{ type: 'text', content: '' }];
+      // 이미 새 포맷이면 그대로
+      if (slides[0].type) return slides.map(b => ({ ...b }));
+      // 구 포맷 변환 (photo_url, date, body)
+      const result = [];
+      for (const s of slides) {
+        result.push({ type: 'text', content: s.body || '' });
+        if (s.photo_url) result.push({ type: 'photo', url: s.photo_url, date: s.date || '', file: null });
       }
+      // 마지막이 photo면 빈 text 추가
+      if (result[result.length - 1]?.type === 'photo') {
+        result.push({ type: 'text', content: '' });
+      }
+      return result;
     }
 
-    function removeSlide(idx) {
-      slides[idx] = null;
-      document.getElementById(`slide-${idx}`).remove();
+    /* ── 에디터 렌더 ── */
+    function renderEditor() {
+      const wrap = document.getElementById('editor-wrap');
+      if (!wrap) return;
+
+      wrap.innerHTML = '';
+
+      blocks.forEach((block, i) => {
+        if (block.type === 'text') {
+          // 텍스트 블록
+          const div = document.createElement('div');
+          div.className = 'block-text';
+          div.dataset.idx = i;
+
+          const ta = document.createElement('textarea');
+          ta.placeholder = '글을 작성하세요...';
+          ta.value = block.content;
+          ta.addEventListener('input', () => { blocks[i].content = ta.value; });
+          div.appendChild(ta);
+
+          // 사진 삽입 버튼 (텍스트 블록 아래)
+          const addBtn = document.createElement('button');
+          addBtn.className = 'insert-photo-btn';
+          addBtn.textContent = '+ 사진 추가';
+          addBtn.addEventListener('click', () => insertPhotoAfter(i));
+          div.appendChild(addBtn);
+
+          wrap.appendChild(div);
+
+        } else if (block.type === 'photo') {
+          // 사진 블록
+          const div = document.createElement('div');
+          div.className = 'block-photo';
+          div.dataset.idx = i;
+
+          div.innerHTML = `
+            <div class="block-photo-header">
+              <span>사진</span>
+              <button class="btn btn-danger" onclick="removeBlock(${i})">삭제</button>
+            </div>
+            <input type="file" accept="image/*" />
+            ${block.url ? `<img class="block-photo-preview" src="${block.url}" />` : `<img class="block-photo-preview" style="display:none;" />`}
+            <span class="block-date-label">날짜 (예: 16 07 10)</span>
+            <input class="block-date-input" type="text" placeholder="YY MM DD" value="${escapeHtml(block.date || '')}" />
+          `;
+
+          const fileInput = div.querySelector('input[type="file"]');
+          const preview = div.querySelector('.block-photo-preview');
+          const dateInput = div.querySelector('.block-date-input');
+
+          fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            blocks[i].file = file;
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+          });
+
+          dateInput.addEventListener('input', () => {
+            blocks[i].date = dateInput.value;
+          });
+
+          wrap.appendChild(div);
+        }
+      });
     }
 
-    function onFileChange(idx, input) {
-      const file = input.files[0];
-      if (!file) return;
-      slides[idx].file = file;
-      const preview = document.getElementById(`preview-${idx}`);
-      preview.src = URL.createObjectURL(file);
-      preview.style.display = 'block';
+    /* ── 사진 블록 삽입 (텍스트 블록 i 뒤에) ── */
+    function insertPhotoAfter(idx) {
+      // idx 텍스트 블록 뒤에 photo + text 삽입
+      blocks.splice(idx + 1, 0,
+        { type: 'photo', url: '', date: '', file: null },
+        { type: 'text', content: '' }
+      );
+      renderEditor();
+    }
+
+    /* ── 블록 삭제 (photo + 이후 빈 text 함께 제거) ── */
+    function removeBlock(idx) {
+      // photo 블록 제거
+      blocks.splice(idx, 1);
+      // 앞뒤 text 블록이 연속되면 합치지 않고 그냥 둠
+      // 단, 블록이 없으면 기본 text 하나 추가
+      if (blocks.length === 0) blocks.push({ type: 'text', content: '' });
+      renderEditor();
     }
 
     /* ── 발행 / 저장 ── */
     async function publish() {
-      const title = document.getElementById('post-title').value.trim();
+      const title = document.getElementById('post-title')?.value.trim();
       const statusEl = document.getElementById('publish-status');
 
       if (!title) {
@@ -187,8 +324,8 @@
         return;
       }
 
-      const activeSlides = slides.filter(s => s !== null && (s.file || s.existingUrl));
-      if (activeSlides.length === 0) {
+      const hasPhoto = blocks.some(b => b.type === 'photo' && (b.url || b.file));
+      if (!hasPhoto) {
         statusEl.textContent = '사진을 최소 1장 추가해주세요.';
         statusEl.className = 'status-msg error';
         return;
@@ -198,44 +335,29 @@
       statusEl.className = 'status-msg';
 
       try {
-        const uploadedSlides = [];
-        for (const slide of activeSlides) {
-          let photoUrl = slide.existingUrl;
-
-          // 새 파일이 있으면 업로드
-          if (slide.file) {
-            const ext = slide.file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-            const { error: uploadErr } = await db.storage
-              .from('photos')
-              .upload(fileName, slide.file);
-            if (uploadErr) throw uploadErr;
-
-            const { data: { publicUrl } } = db.storage
-              .from('photos')
-              .getPublicUrl(fileName);
-            photoUrl = publicUrl;
+        const savedBlocks = [];
+        for (const block of blocks) {
+          if (block.type === 'text') {
+            savedBlocks.push({ type: 'text', content: block.content });
+          } else if (block.type === 'photo') {
+            let url = block.url;
+            if (block.file) {
+              const ext = block.file.name.split('.').pop();
+              const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+              const { error: uploadErr } = await db.storage.from('photos').upload(fileName, block.file);
+              if (uploadErr) throw uploadErr;
+              const { data: { publicUrl } } = db.storage.from('photos').getPublicUrl(fileName);
+              url = publicUrl;
+            }
+            if (url) savedBlocks.push({ type: 'photo', url, date: block.date });
           }
-
-          uploadedSlides.push({
-            photo_url: photoUrl,
-            date: slide.date,
-            body: slide.body,
-          });
         }
 
         if (editingId) {
-          // 편집 모드: UPDATE
-          const { error } = await db
-            .from('posts')
-            .update({ title, slides: uploadedSlides })
-            .eq('id', editingId);
+          const { error } = await db.from('posts').update({ title, slides: savedBlocks }).eq('id', editingId);
           if (error) throw error;
         } else {
-          // 새 글 모드: INSERT
-          const { error } = await db
-            .from('posts')
-            .insert({ title, slides: uploadedSlides });
+          const { error } = await db.from('posts').insert({ title, slides: savedBlocks });
           if (error) throw error;
         }
 
@@ -253,39 +375,36 @@
     /* ── 글 목록 ── */
     async function loadPostList() {
       const listEl = document.getElementById('post-list');
+      if (!listEl) return;
       const { data: posts, error } = await db
         .from('posts')
         .select('id, title, created_at, slides')
         .order('created_at', { ascending: false });
 
-      if (error || !posts?.length) {
-        listEl.innerHTML = '';
-        return;
-      }
+      if (error || !posts?.length) { listEl.innerHTML = ''; return; }
 
       listEl.innerHTML = `
         <h3>발행된 글 (${posts.length})</h3>
-        ${posts.map(p => `
-          <div class="post-list-item">
-            <div>
-              <div class="post-list-title">${escapeHtml(p.title)}</div>
-              <div class="post-list-meta">${p.slides?.length || 0}장 · ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
+        ${posts.map(p => {
+          const photoCount = (p.slides || []).filter(b => b.type === 'photo' || b.photo_url).length;
+          return `
+            <div class="post-list-item">
+              <div>
+                <div class="post-list-title">${escapeHtml(p.title)}</div>
+                <div class="post-list-meta">사진 ${photoCount}장 · ${new Date(p.created_at).toLocaleDateString('ko-KR')}</div>
+              </div>
+              <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-sm" onclick="startEdit('${p.id}')">편집</button>
+                <button class="btn btn-danger" onclick="deletePost('${p.id}', this)">삭제</button>
+              </div>
             </div>
-            <div style="display:flex;gap:0.5rem;">
-              <button class="btn btn-sm" onclick="startEdit('${p.id}')">편집</button>
-              <button class="btn btn-danger" onclick="deletePost('${p.id}', this)">삭제</button>
-            </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       `;
     }
 
     async function startEdit(id) {
-      const { data: post, error } = await db
-        .from('posts')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data: post, error } = await db.from('posts').select('*').eq('id', id).single();
       if (error || !post) return;
       renderAdmin(post);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -300,13 +419,9 @@
       else { btn.disabled = false; btn.textContent = '삭제'; }
     }
 
-    /* ── 유틸 ── */
     function escapeHtml(str) {
       return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-
-    /* ── UPDATE 정책 추가 필요 안내 숨김 처리 ── */
-    // Supabase에 update 정책이 없으면 저장이 안 됨 → 별도 안내
 
     init();
   </script>
