@@ -28,39 +28,67 @@ body {
 
 /* ── 홈 ── */
 .site-header {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 4rem 1.5rem 2.5rem;
+  padding: 60px 1.5rem 0;
   text-align: center;
 }
 
 .site-header h1 {
   font-size: 20px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  margin-bottom: 6px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: 0;
+  margin: 0 0 10px;
+  color: #1d1d1d;
 }
 
 .site-header p {
-  font-size: 13px;
-  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 20px;
+  color: #d9d9d9;
+  font-weight: 400;
+  margin: 0;
+}
+
+.header-divider {
+  height: 1px;
+  background: #e8e8e8;
+  margin: 40px 64px 0;
+}
+
+.gallery-wrap {
+  padding: 40px 60px 5rem;
+}
+
+.nickname-tag {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 400;
+  color: #c40c0c;
+  border: 1px solid #c40c0c;
+  padding: 2px 10px;
+  margin-bottom: 10px;
+  background: #fff;
 }
 
 .gallery {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 1.5rem 5rem;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1.5rem 1.25rem;
+  grid-template-columns: repeat(6, 270px);
+  gap: 64px;
 }
 
+@media (max-width: 1800px) {
+  .gallery { grid-template-columns: repeat(6, 1fr); gap: 64px; }
+  .frame { width: 100%; height: auto; aspect-ratio: 1/1; }
+  .frame img { width: 43%; height: 43%; }
+}
 @media (max-width: 900px) {
-  .gallery { grid-template-columns: repeat(3, 1fr); }
+  .gallery { grid-template-columns: repeat(3, 1fr); gap: 24px; }
 }
 @media (max-width: 520px) {
-  .gallery { grid-template-columns: repeat(2, 1fr); gap: 2rem 1rem; }
+  .gallery { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
+
 
 .frame-link {
   display: block;
@@ -69,27 +97,23 @@ body {
 }
 
 .frame {
-  aspect-ratio: 1 / 1;
-  border: 1.5px solid var(--frame-border);
-  background: var(--mat);
+  width: 270px;
+  height: 270px;
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8%;
-  transition: border-color 0.15s;
   overflow: hidden;
-}
-
-.frame-link:hover .frame {
-  border-color: var(--text-primary);
+  flex-shrink: 0;
 }
 
 .frame img {
-  width: 100%;
-  height: 100%;
+  width: 116px;
+  height: 116px;
   object-fit: cover;
   display: block;
-  background: var(--photo-bg);
+  background: #d9d9d9;
 }
 
 .photo-placeholder {
